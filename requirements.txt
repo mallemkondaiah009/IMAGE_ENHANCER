@@ -1,0 +1,6 @@
+flet
+Pillow
+rembg
+onnxruntime
+pydantic-settings
+python-dotenv
