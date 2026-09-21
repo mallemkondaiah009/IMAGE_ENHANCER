@@ -324,17 +324,7 @@ class RemoveBgView(ft.Container):
                     root.destroy()
                     if dest_dir:
                         self._last_browse_dir = dest_dir
-                        target_full_path = self.vm.export_folder(dest_dir)
-                        if target_full_path and os.path.exists(target_full_path):
-                            try:
-                                os.startfile(target_full_path)
-                            except Exception:
-                                pass
-                    else:
-                        try:
-                            os.startfile(state.batch_output_dir)
-                        except Exception:
-                            pass
+                        self.vm.export_folder(dest_dir)
                 else:
                     if not state.output_path or not os.path.exists(state.output_path):
                         return
@@ -371,12 +361,7 @@ class RemoveBgView(ft.Container):
                     root.destroy()
                     if dest:
                         self._last_browse_dir = os.path.dirname(dest)
-                        saved_path = self.vm.export_image(dest)
-                        if saved_path and os.path.exists(saved_path):
-                            try:
-                                os.startfile(saved_path)
-                            except Exception:
-                                pass
+                        self.vm.export_image(dest)
             except Exception as exc:
                 print(f"[-] Save error: {exc}")
             finally:
