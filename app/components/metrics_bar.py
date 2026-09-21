@@ -11,10 +11,10 @@ class MetricsBar(ft.Container):
     def __init__(self):
         super().__init__()
         self.bgcolor = StudioColors.CARD_BG
-        self.border = ft.Border.all(1, StudioColors.CARD_BORDER)
-        self.border_radius = 16
-        self.shadow = ft.BoxShadow(spread_radius=0, blur_radius=14, color="#00000008", offset=ft.Offset(0, 4))
-        self.padding = ft.Padding.symmetric(vertical=12, horizontal=20)
+        self.border = ft.Border.all(1.5, StudioColors.CARD_BORDER)
+        self.border_radius = 4
+        self.shadow = ft.BoxShadow(spread_radius=0, blur_radius=14, color="#00000040", offset=ft.Offset(0, 4))
+        self.padding = ft.Padding.symmetric(vertical=10, horizontal=20)
         self.visible = False
 
         self.stat_orig = ft.Text("—", size=12, weight=ft.FontWeight.W_800, color=StudioColors.TEXT_PRIMARY)
@@ -51,7 +51,7 @@ class MetricsBar(ft.Container):
             self.visible = True
             self.stat_orig.value = f"{m.original_width} × {m.original_height} px ({m.original_kb} KB)"
             self.stat_res.value = f"{m.result_width} × {m.result_height} px (Enforced)"
-            self.stat_file.value = f"{m.result_kb} KB (≤ 500 KB)"
+            self.stat_file.value = f"{m.result_kb} KB (Master Quality)"
             self.stat_time.value = f"{m.duration_seconds}s GPU"
         elif state.input_path and m.original_width > 0:
             self.visible = True

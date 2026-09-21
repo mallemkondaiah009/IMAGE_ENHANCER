@@ -105,7 +105,7 @@ class HomeView(ft.Container):
                                 controls=[
                                     self._build_color_badge("4x Super-Resolution", "#FFFFFF", "#93C5FD", "#1D4ED8"),
                                     self._build_color_badge("Exact 2000×2000 px", "#FFFFFF", "#93C5FD", "#1D4ED8"),
-                                    self._build_color_badge("≤ 500 KB Optimized", "#FFFFFF", "#93C5FD", "#1D4ED8"),
+                                    self._build_color_badge("Master Studio Quality", "#FFFFFF", "#93C5FD", "#1D4ED8"),
                                     self._build_color_badge("Zero Color Bleeding", "#FFFFFF", "#93C5FD", "#1D4ED8"),
                                 ],
                             ),
@@ -212,9 +212,9 @@ class HomeView(ft.Container):
                                 spacing=6,
                                 controls=[
                                     self._build_color_badge("BiRefNet AI Cutout", "#FFFFFF", "#6EE7B7", "#047857"),
-                                    self._build_color_badge("Transparent PNG", "#FFFFFF", "#6EE7B7", "#047857"),
+                                    self._build_color_badge("Studio White / Transparent", "#FFFFFF", "#6EE7B7", "#047857"),
                                     self._build_color_badge("Exact 2000×2000 px", "#FFFFFF", "#6EE7B7", "#047857"),
-                                    self._build_color_badge("≤ 500 KB Optimized", "#FFFFFF", "#6EE7B7", "#047857"),
+                                    self._build_color_badge("Master Studio Quality", "#FFFFFF", "#6EE7B7", "#047857"),
                                 ],
                             ),
                         ],

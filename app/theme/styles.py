@@ -7,9 +7,9 @@ from .colors import StudioColors
 
 
 class StudioStyles:
-    RADIUS_CARD = 14
-    RADIUS_ITEM = 8
-    RADIUS_CHIP = 16
+    RADIUS_CARD = 4
+    RADIUS_ITEM = 4
+    RADIUS_CHIP = 4
 
     @staticmethod
     def primary_gold_button() -> ft.ButtonStyle:
@@ -22,8 +22,8 @@ class StudioStyles:
                 ft.ControlState.HOVERED: "#1D4ED8",
                 "": StudioColors.GOLD_PRIMARY,
             },
-            shape=ft.RoundedRectangleBorder(radius=StudioStyles.RADIUS_ITEM),
-            padding=ft.Padding.symmetric(vertical=14, horizontal=20),
+            shape=ft.RoundedRectangleBorder(radius=4),
+            padding=ft.Padding.symmetric(vertical=12, horizontal=20),
             animation_duration=180,
         )
 
@@ -46,8 +46,8 @@ class StudioStyles:
                 ft.ControlState.HOVERED: ft.BorderSide(1.5, "#3B82F6"),
                 "": ft.BorderSide(1.5 if active else 1.0, active_border),
             },
-            shape=ft.RoundedRectangleBorder(radius=20),
-            padding=ft.Padding.symmetric(horizontal=14, vertical=9),
+            shape=ft.RoundedRectangleBorder(radius=4),
+            padding=ft.Padding.symmetric(horizontal=14, vertical=10),
             animation_duration=180,
         )
 
@@ -66,7 +66,7 @@ class StudioStyles:
                 ft.ControlState.HOVERED: ft.BorderSide(1, "#3B82F6"),
                 "": ft.BorderSide(1, StudioColors.CARD_BORDER),
             },
-            shape=ft.RoundedRectangleBorder(radius=20),
+            shape=ft.RoundedRectangleBorder(radius=4),
             padding=ft.Padding.symmetric(horizontal=16, vertical=10),
             animation_duration=180,
         )
@@ -86,7 +86,7 @@ class StudioStyles:
                 ft.ControlState.HOVERED: ft.BorderSide(1, "#3B82F6"),
                 "": ft.BorderSide(1, StudioColors.CARD_BORDER),
             },
-            shape=ft.RoundedRectangleBorder(radius=20),
+            shape=ft.RoundedRectangleBorder(radius=4),
             padding=ft.Padding.symmetric(horizontal=14, vertical=9),
             animation_duration=180,
         )

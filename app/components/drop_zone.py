@@ -13,7 +13,8 @@ class DropZone(ft.Container):
     def __init__(
         self,
         on_browse_click: Callable[[], None],
-        on_sample_click: Callable[[], None],
+        on_sample_click: Callable[[], None] = None,
+        on_folder_click: Callable[[], None] = None,
     ):
         super().__init__()
         self.bgcolor = StudioColors.CARD_BG
@@ -23,24 +24,28 @@ class DropZone(ft.Container):
 
         self.thumbnail_img = ft.Image(
             src="",
-            width=54,
-            height=54,
+            width=52,
+            height=52,
             fit=ft.BoxFit.COVER,
-            border_radius=8,
+            border_radius=2,
             visible=False,
         )
 
         self.file_info_title = ft.Text(
             "No image loaded",
             size=12,
-            weight=ft.FontWeight.W_700,
+            weight=ft.FontWeight.W_800,
             color=StudioColors.TEXT_PRIMARY,
+            no_wrap=True,
+            overflow=ft.TextOverflow.ELLIPSIS,
         )
 
         self.file_info_sub = ft.Text(
             "Select or drop a photo to begin",
-            size=10,
+            size=11,
             color=StudioColors.TEXT_MUTED,
+            no_wrap=True,
+            overflow=ft.TextOverflow.ELLIPSIS,
         )
 
         self.loaded_badge = ft.Container(
@@ -60,49 +65,57 @@ class DropZone(ft.Container):
                     ),
                 ],
             ),
-            bgcolor=StudioColors.SURFACE_MUTED,
-            border=ft.Border.all(1, StudioColors.CARD_BORDER),
-            border_radius=10,
+            bgcolor="#0B0F19",
+            border=ft.Border.all(1, "#1E293B"),
+            border_radius=4,
             padding=10,
             visible=False,
         )
 
-        browse_btn = ft.OutlinedButton(
+        self.zone_title = ft.Text(
+            "Load Jewelry Photograph",
+            size=13,
+            weight=ft.FontWeight.W_800,
+            color=StudioColors.TEXT_PRIMARY,
+        )
+
+        self.zone_sub = ft.Text(
+            "Solitaire rings, diamonds, gems, gold (PNG, JPG, WebP)",
+            size=11,
+            color=StudioColors.TEXT_MUTED,
+        )
+
+        self.browse_btn = ft.OutlinedButton(
             "Browse File",
-            icon=ft.Icons.FOLDER_OPEN,
+            icon=ft.Icons.IMAGE_OUTLINED,
             expand=True,
+            height=40,
             style=ft.ButtonStyle(
-                color={ft.ControlState.HOVERED: "#FFFFFF", "": StudioColors.TEXT_SECONDARY},
-                bgcolor={ft.ControlState.HOVERED: "#1E293B", "": ft.Colors.TRANSPARENT},
-                side={ft.ControlState.HOVERED: ft.BorderSide(1.5, StudioColors.GOLD_PRIMARY), "": ft.BorderSide(1, StudioColors.CARD_BORDER)},
-                shape=ft.RoundedRectangleBorder(radius=20),
-                padding=ft.Padding.symmetric(vertical=10, horizontal=14),
+                color={ft.ControlState.HOVERED: "#FFFFFF", "": "#CBD5E1"},
+                bgcolor={ft.ControlState.HOVERED: "#1E293B", "": "#111827"},
+                side={ft.ControlState.HOVERED: ft.BorderSide(1.5, "#3B82F6"), "": ft.BorderSide(1, "#1E293B")},
+                shape=ft.RoundedRectangleBorder(radius=4),
+                padding=ft.Padding.symmetric(vertical=8, horizontal=12),
                 animation_duration=180,
             ),
             on_click=lambda e: on_browse_click(),
         )
 
-        sample_btn = ft.FilledButton(
-            "✨ Try Demo Ring",
+        self.folder_btn = ft.OutlinedButton(
+            "Select Folder",
+            icon=ft.Icons.DRIVE_FOLDER_UPLOAD,
             expand=True,
+            height=40,
+            visible=True,
             style=ft.ButtonStyle(
-                color={
-                    ft.ControlState.HOVERED: "#FFFFFF",
-                    "": "#60A5FA",
-                },
-                bgcolor={
-                    ft.ControlState.HOVERED: "#1E293B",
-                    "": StudioColors.GOLD_CHIP_BG,
-                },
-                side={
-                    ft.ControlState.HOVERED: ft.BorderSide(1.5, StudioColors.GOLD_PRIMARY),
-                    "": ft.BorderSide(1, StudioColors.GOLD_CHIP_BORDER),
-                },
-                shape=ft.RoundedRectangleBorder(radius=20),
-                padding=ft.Padding.symmetric(vertical=10, horizontal=14),
+                color={ft.ControlState.HOVERED: "#FFFFFF", "": "#34D399"},
+                bgcolor={ft.ControlState.HOVERED: "#059669", "": "#064E3B40"},
+                side={ft.ControlState.HOVERED: ft.BorderSide(1.5, "#10B981"), "": ft.BorderSide(1, "#059669")},
+                shape=ft.RoundedRectangleBorder(radius=4),
+                padding=ft.Padding.symmetric(vertical=8, horizontal=12),
                 animation_duration=180,
             ),
-            on_click=lambda e: on_sample_click(),
+            on_click=lambda e: on_folder_click() if on_folder_click else None,
         )
 
         self.content = ft.Column(
@@ -112,42 +125,45 @@ class DropZone(ft.Container):
                     spacing=12,
                     controls=[
                         ft.Container(
-                            content=ft.Icon(ft.Icons.ADD_PHOTO_ALTERNATE_OUTLINED, color=StudioColors.GOLD_PRIMARY, size=22),
-                            width=42,
-                            height=42,
+                            content=ft.Icon(ft.Icons.ADD_PHOTO_ALTERNATE_OUTLINED, color=StudioColors.GOLD_PRIMARY, size=20),
+                            width=38,
+                            height=38,
                             bgcolor=StudioColors.GOLD_CHIP_BG,
                             border=ft.Border.all(1, StudioColors.GOLD_CHIP_BORDER),
-                            border_radius=21,
+                            border_radius=4,
                             alignment=ft.Alignment(0, 0),
                         ),
                         ft.Column(
                             spacing=1,
                             controls=[
-                                ft.Text(
-                                    "Load Jewelry Photograph",
-                                    size=13,
-                                    weight=ft.FontWeight.W_800,
-                                    color=StudioColors.TEXT_PRIMARY,
-                                ),
-                                ft.Text(
-                                    "Solitaire rings, diamonds, gems, gold (PNG, JPG, WebP)",
-                                    size=11,
-                                    color=StudioColors.TEXT_MUTED,
-                                ),
+                                self.zone_title,
+                                self.zone_sub,
                             ],
                         ),
                     ],
                 ),
                 ft.Row(
                     spacing=10,
-                    controls=[browse_btn, sample_btn],
+                    controls=[self.browse_btn, self.folder_btn],
                 ),
                 self.loaded_badge,
             ],
         )
 
     def update_from_state(self, state: StudioState) -> None:
-        if state.input_data_uri and state.input_path:
+        from app.models import EnhancementMode
+        self.zone_title.value = "Load Image or Folder"
+        self.zone_sub.value = "Select single photo or an entire image folder (PNG, JPG, WebP)"
+        self.folder_btn.visible = True
+
+        if state.is_batch and state.batch_folder_name:
+            self.thumbnail_img.src = state.input_data_uri or ""
+            self.thumbnail_img.visible = bool(state.input_data_uri)
+            self.file_info_title.value = f"📁 {state.batch_folder_name}"
+            action_desc = "batch 4x enhancement" if state.active_mode == EnhancementMode.ENHANCE else "batch BG removal"
+            self.file_info_sub.value = f"{state.batch_total} images found · Ready for {action_desc}"
+            self.loaded_badge.visible = True
+        elif state.input_data_uri and state.input_path:
             filename = os.path.basename(state.input_path)
             w = state.metrics.original_width
             h = state.metrics.original_height

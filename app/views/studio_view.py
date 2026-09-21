@@ -5,6 +5,7 @@ Unified single-page layout with centered dual-mode switcher in the header,
 clean minimal controls (DropZone & ActionPanel), and high-performance Vulkan & BiRefNet engines.
 """
 import os
+import shutil
 import uuid
 import flet as ft
 from app.viewmodels import StudioViewModel
@@ -26,19 +27,16 @@ class StudioView(ft.Container):
         self.vm = viewmodel
         self.expand = True
         self.bgcolor = StudioColors.BG_WHITE
-
-        # Attach file pickers
-        self.file_picker = ft.FilePicker()
-        self.save_file_picker = ft.FilePicker()
-        if hasattr(self.app_page, "services"):
-            self.app_page.services.extend([self.file_picker, self.save_file_picker])
+        self._dialog_lock = False
+        pictures_dir = os.path.expanduser("~/Pictures")
+        self._last_browse_dir = pictures_dir if os.path.exists(pictures_dir) else os.path.expanduser("~/Desktop")
 
         # ── 1. Create Child Components ────────────────────────────────────────
         self.header = HeaderBar(on_mode_change=self._handle_mode_change)
 
         self.drop_zone = DropZone(
             on_browse_click=self._handle_browse,
-            on_sample_click=self._handle_sample,
+            on_folder_click=self._handle_folder_pick,
         )
 
         self.action_panel = ActionPanel(
@@ -47,6 +45,7 @@ class StudioView(ft.Container):
 
         self.comparison_canvas = ComparisonCanvas(
             on_save_click=self._handle_save,
+            on_cutout_bg_change=self._handle_cutout_bg_change,
         )
 
         self.metrics_bar = MetricsBar()
@@ -65,7 +64,7 @@ class StudioView(ft.Container):
             bgcolor=StudioColors.CARD_BG,
             border=ft.Border.all(1.5, StudioColors.CARD_BORDER),
             border_radius=StudioStyles.RADIUS_CARD,
-            shadow=ft.BoxShadow(spread_radius=0, blur_radius=16, color="#00000008", offset=ft.Offset(0, 4)),
+            shadow=None,
             padding=16,
         )
 
@@ -115,43 +114,85 @@ class StudioView(ft.Container):
         self.comparison_canvas.update_from_state(state)
         self.metrics_bar.update_from_state(state)
         try:
-            if self.page:
-                self.page.update()
+            if self.app_page:
+                self.app_page.update()
         except Exception:
             pass
 
-    # ── Event Callbacks ───────────────────────────────────────────────────────
-    def _handle_browse(self) -> None:
-        async def _pick():
-            try:
-                files = await self.file_picker.pick_files(
-                    dialog_title="Select Jewelry Image",
-                    file_type=ft.FilePickerFileType.IMAGE,
-                )
-                if files and len(files) > 0:
-                    self.vm.load_image(files[0].path)
-                    return
-            except Exception:
-                pass
+    # ── Event Callbacks (Single-Instance Instant Dialogs) ─────────────────────
+    async def _async_load_image(self, file_path: str) -> None:
+        self.vm.load_image(file_path)
 
-            # Tkinter fallback
+    async def _async_load_folder(self, folder_path: str) -> None:
+        self.vm.load_folder(folder_path)
+
+    def _handle_browse(self) -> None:
+        if getattr(self, "_dialog_lock", False):
+            return
+        self._dialog_lock = True
+        initial_dir = self._last_browse_dir if (self._last_browse_dir and os.path.exists(self._last_browse_dir)) else os.path.expanduser("~")
+
+        def _worker():
             try:
                 import tkinter as tk
                 from tkinter import filedialog
                 root = tk.Tk()
                 root.withdraw()
                 root.attributes("-topmost", True)
+                root.update()
                 chosen = filedialog.askopenfilename(
                     title="Select Jewelry Image",
-                    filetypes=[("Image files", "*.jpg;*.jpeg;*.png;*.webp"), ("All files", "*.*")],
+                    initialdir=initial_dir,
+                    filetypes=[
+                        ("Supported Images", "*.jpg;*.jpeg;*.png;*.webp;*.bmp;*.tiff"),
+                        ("JPEG Image (*.jpg, *.jpeg)", "*.jpg;*.jpeg"),
+                        ("PNG Image (*.png)", "*.png"),
+                        ("WebP Image (*.webp)", "*.webp"),
+                        ("All Files (*.*)", "*.*"),
+                    ],
                 )
                 root.destroy()
                 if chosen:
-                    self.vm.load_image(chosen)
-            except Exception as inner:
-                print(f"[-] Pick error: {inner}")
+                    self._last_browse_dir = os.path.dirname(chosen)
+                    self.app_page.run_task(self._async_load_image, chosen)
+            except Exception as exc:
+                print(f"[-] Browse error: {exc}")
+            finally:
+                self._dialog_lock = False
 
-        self.app_page.run_task(_pick)
+        import threading
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _handle_folder_pick(self) -> None:
+        if getattr(self, "_dialog_lock", False):
+            return
+        self._dialog_lock = True
+        initial_dir = self._last_browse_dir if (self._last_browse_dir and os.path.exists(self._last_browse_dir)) else os.path.expanduser("~")
+
+        def _worker():
+            try:
+                import tkinter as tk
+                from tkinter import filedialog
+                root = tk.Tk()
+                root.withdraw()
+                root.attributes("-topmost", True)
+                root.update()
+                mode_title = "Batch 4x Super-Resolution" if self.vm.state.active_mode == EnhancementMode.ENHANCE else "Batch Background Removal"
+                chosen = filedialog.askdirectory(
+                    title=f"Select Image Folder for {mode_title}",
+                    initialdir=initial_dir,
+                )
+                root.destroy()
+                if chosen:
+                    self._last_browse_dir = chosen
+                    self.app_page.run_task(self._async_load_folder, chosen)
+            except Exception as exc:
+                print(f"[-] Folder pick error: {exc}")
+            finally:
+                self._dialog_lock = False
+
+        import threading
+        threading.Thread(target=_worker, daemon=True).start()
 
     def _handle_sample(self) -> None:
         self.vm.load_sample_image()
@@ -159,47 +200,103 @@ class StudioView(ft.Container):
     def _handle_mode_change(self, mode: EnhancementMode) -> None:
         self.vm.set_enhancement_mode(mode)
 
+    def _handle_cutout_bg_change(self, bg) -> None:
+        self.vm.set_cutout_bg(bg)
+
     def _handle_process(self) -> None:
         self.app_page.run_task(self.vm.process_image)
 
     def _handle_save(self) -> None:
-        state = self.vm.state
-        if not state.output_path or not os.path.exists(state.output_path):
+        if getattr(self, "_dialog_lock", False):
             return
+        self._dialog_lock = True
 
-        ext = os.path.splitext(state.output_path)[1].lstrip(".").lower() or "jpg"
-        allowed = ["png"] if ext == "png" else ["jpg", "jpeg"]
-        filetypes = [("PNG Image", "*.png"), ("All files", "*.*")] if ext == "png" else [("JPEG Image", "*.jpg;*.jpeg"), ("All files", "*.*")]
+        state = self.vm.state
+        initial_dir = self._last_browse_dir if (self._last_browse_dir and os.path.exists(self._last_browse_dir)) else os.path.expanduser("~")
 
-        async def _save():
-            try:
-                dest = await self.save_file_picker.save_file(
-                    dialog_title="Download Processed Jewelry Image",
-                    file_name=f"lumiere_{state.active_mode.value}_{uuid.uuid4().hex[:6]}.{ext}",
-                    allowed_extensions=allowed,
-                )
-                if dest:
-                    self.vm.export_image(dest)
-                    return
-            except Exception:
-                pass
-
-            # Tkinter fallback
+        def _worker():
             try:
                 import tkinter as tk
                 from tkinter import filedialog
-                root = tk.Tk()
-                root.withdraw()
-                root.attributes("-topmost", True)
-                dest = filedialog.asksaveasfilename(
-                    title="Download Processed Jewelry Image",
-                    defaultextension=f".{ext}",
-                    filetypes=filetypes,
-                )
-                root.destroy()
-                if dest:
-                    self.vm.export_image(dest)
-            except Exception as inner:
-                print(f"[-] Save error: {inner}")
 
-        self.app_page.run_task(_save)
+                if state.is_batch:
+                    if not state.batch_output_dir or not os.path.exists(state.batch_output_dir):
+                        return
+                    root = tk.Tk()
+                    root.withdraw()
+                    root.attributes("-topmost", True)
+                    root.update()
+                    folder_name = state.batch_folder_name or "batch_output"
+                    dest_dir = filedialog.askdirectory(
+                        title=f"Select Destination to Download Folder '{folder_name}'",
+                        initialdir=initial_dir,
+                    )
+                    root.destroy()
+                    if dest_dir:
+                        self._last_browse_dir = dest_dir
+                        target_full_path = self.vm.export_folder(dest_dir)
+                        if target_full_path and os.path.exists(target_full_path):
+                            try:
+                                os.startfile(target_full_path)
+                            except Exception:
+                                pass
+                    else:
+                        try:
+                            os.startfile(state.batch_output_dir)
+                        except Exception:
+                            pass
+                else:
+                    if not state.output_path or not os.path.exists(state.output_path):
+                        return
+                    orig_name = os.path.basename(state.input_path) if state.input_path else "image"
+                    orig_stem, _ = os.path.splitext(orig_name)
+                    ext = os.path.splitext(state.output_path)[1].lstrip(".").lower() or "jpg"
+                    filetypes = [("PNG Image", "*.png"), ("All files", "*.*")] if ext == "png" else [("JPEG Image", "*.jpg;*.jpeg"), ("All files", "*.*")]
+
+                    # In Image Enhance: add '-enhanced' to uploaded filename
+                    # In BG Removal: use same filename as uploaded image
+                    if state.active_mode == EnhancementMode.ENHANCE:
+                        base_name = f"{orig_stem}-enhanced"
+                    elif state.active_mode == EnhancementMode.REMOVE_BG:
+                        base_name = f"{orig_stem}"
+                    else:
+                        base_name = f"{orig_stem}-enhanced"
+
+                    # Prevent duplicate file name if file already exists in initial_dir
+                    candidate_file = f"{base_name}.{ext}"
+                    if os.path.exists(os.path.join(initial_dir, candidate_file)):
+                        counter = 1
+                        candidate_file = f"{base_name}_{counter}.{ext}"
+                        while os.path.exists(os.path.join(initial_dir, candidate_file)):
+                            counter += 1
+                            candidate_file = f"{base_name}_{counter}.{ext}"
+
+                    initial_file = candidate_file
+
+                    root = tk.Tk()
+                    root.withdraw()
+                    root.attributes("-topmost", True)
+                    root.update()
+                    dest = filedialog.asksaveasfilename(
+                        title="Download Processed Jewelry Image",
+                        initialdir=initial_dir,
+                        initialfile=initial_file,
+                        defaultextension=f".{ext}",
+                        filetypes=filetypes,
+                    )
+                    root.destroy()
+                    if dest:
+                        self._last_browse_dir = os.path.dirname(dest)
+                        saved_path = self.vm.export_image(dest)
+                        if saved_path and os.path.exists(saved_path):
+                            try:
+                                os.startfile(saved_path)
+                            except Exception:
+                                pass
+            except Exception as exc:
+                print(f"[-] Save error: {exc}")
+            finally:
+                self._dialog_lock = False
+
+        import threading
+        threading.Thread(target=_worker, daemon=True).start()

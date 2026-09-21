@@ -1,5 +1,6 @@
 from .studio_models import (
     EnhancementMode,
+    CutoutBackground,
     ViewMode,
     ProcessingStatus,
     ImageMetrics,
@@ -8,6 +9,7 @@ from .studio_models import (
 
 __all__ = [
     "EnhancementMode",
+    "CutoutBackground",
     "ViewMode",
     "ProcessingStatus",
     "ImageMetrics",

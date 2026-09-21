@@ -7,7 +7,7 @@ import uuid
 from typing import Callable
 import flet as ft
 from app.viewmodels import StudioViewModel
-from app.models import EnhancementMode, ViewMode
+from app.models import EnhancementMode, ViewMode, CutoutBackground
 from app.theme import StudioColors, StudioStyles
 from app.components import (
     DropZone,
@@ -30,6 +30,8 @@ class RemoveBgView(ft.Container):
         # File Pickers
         self.file_picker = ft.FilePicker()
         self.save_file_picker = ft.FilePicker()
+        pictures_dir = os.path.expanduser("~/Pictures")
+        self._last_browse_dir = pictures_dir if os.path.exists(pictures_dir) else os.path.expanduser("~/Desktop")
         if hasattr(self.app_page, "services"):
             self.app_page.services.extend([self.file_picker, self.save_file_picker])
 
@@ -87,7 +89,7 @@ class RemoveBgView(ft.Container):
         # ── 2. Left Control Panel ─────────────────────────────────────────────
         self.drop_zone = DropZone(
             on_browse_click=self._handle_browse,
-            on_sample_click=self._handle_sample,
+            on_folder_click=self._handle_folder_pick,
         )
 
         self.specs_card = SpecsCard()
@@ -157,9 +159,8 @@ class RemoveBgView(ft.Container):
 
         # ── 3. Right Workspace Panel ──────────────────────────────────────────
         self.comparison_canvas = ComparisonCanvas(
-            on_view_change=self._handle_view_change,
-            on_hold_toggle=self._handle_hold_toggle,
             on_save_click=self._handle_save,
+            on_cutout_bg_change=self._handle_cutout_bg_change,
         )
 
         self.metrics_bar = MetricsBar()
@@ -195,89 +196,191 @@ class RemoveBgView(ft.Container):
         self.comparison_canvas.update_from_state(state)
         self.metrics_bar.update_from_state(state)
 
+        if state.is_batch and state.batch_total > 0:
+            btn_text = f"REMOVE BG FOR ALL {state.batch_total} IMAGES"
+            btn_icon = ft.Icons.AUTO_AWESOME_MOTION
+        elif getattr(state, "cutout_bg", None) == CutoutBackground.WHITE:
+            btn_text = "REMOVE BACKGROUND (BG WHITE)"
+            btn_icon = ft.Icons.CONTENT_CUT
+        elif getattr(state, "cutout_bg", None) == CutoutBackground.BLACK:
+            btn_text = "REMOVE BACKGROUND (BG BLACK)"
+            btn_icon = ft.Icons.CONTENT_CUT
+        else:
+            btn_text = "REMOVE BACKGROUND (TRANSPARENT)"
+            btn_icon = ft.Icons.CONTENT_CUT
+
+        self.process_btn.update_appearance(
+            text=btn_text,
+            icon=btn_icon,
+        )
+
         self.process_btn.disabled = state.is_processing or (state.input_image is None)
         self.progress_bar.visible = state.is_processing
         self.progress_bar.value = None if state.is_processing else 0
         self.status_log.value = state.status_message
         self.status_log.color = StudioColors.SUCCESS_TEXT if state.is_processing else StudioColors.TEXT_MUTED
 
-    def _handle_browse(self) -> None:
-        async def _pick():
-            try:
-                files = await self.file_picker.pick_files(
-                    dialog_title="Select Jewelry Image for Cutout",
-                    file_type=ft.FilePickerFileType.IMAGE,
-                )
-                if files and len(files) > 0:
-                    self.vm.load_image(files[0].path)
-                    return
-            except Exception:
-                pass
+    async def _async_load_image(self, file_path: str) -> None:
+        self.vm.load_image(file_path)
 
+    async def _async_load_folder(self, folder_path: str) -> None:
+        self.vm.load_folder(folder_path)
+
+    def _handle_browse(self) -> None:
+        if getattr(self, "_dialog_lock", False):
+            return
+        self._dialog_lock = True
+        initial_dir = self._last_browse_dir if (self._last_browse_dir and os.path.exists(self._last_browse_dir)) else os.path.expanduser("~")
+
+        def _worker():
             try:
                 import tkinter as tk
                 from tkinter import filedialog
                 root = tk.Tk()
                 root.withdraw()
                 root.attributes("-topmost", True)
+                root.update()
                 chosen = filedialog.askopenfilename(
                     title="Select Jewelry Image for Cutout",
-                    filetypes=[("Image files", "*.jpg;*.jpeg;*.png;*.webp"), ("All files", "*.*")],
+                    initialdir=initial_dir,
+                    filetypes=[
+                        ("Supported Images", "*.jpg;*.jpeg;*.png;*.webp;*.bmp;*.tiff"),
+                        ("All files", "*.*"),
+                    ],
                 )
                 root.destroy()
                 if chosen:
-                    self.vm.load_image(chosen)
-            except Exception as inner:
-                print(f"[-] Pick error: {inner}")
+                    self._last_browse_dir = os.path.dirname(chosen)
+                    self.app_page.run_task(self._async_load_image, chosen)
+            except Exception as exc:
+                print(f"[-] Pick error: {exc}")
+            finally:
+                self._dialog_lock = False
 
-        self.app_page.run_task(_pick)
+        import threading
+        threading.Thread(target=_worker, daemon=True).start()
 
-    def _handle_sample(self) -> None:
-        self.vm.load_sample_image()
+    def _handle_folder_pick(self) -> None:
+        if getattr(self, "_dialog_lock", False):
+            return
+        self._dialog_lock = True
+        initial_dir = self._last_browse_dir if (self._last_browse_dir and os.path.exists(self._last_browse_dir)) else os.path.expanduser("~")
 
-    def _handle_view_change(self, mode: ViewMode) -> None:
-        self.vm.set_view_mode(mode)
+        def _worker():
+            try:
+                import tkinter as tk
+                from tkinter import filedialog
+                root = tk.Tk()
+                root.withdraw()
+                root.attributes("-topmost", True)
+                root.update()
+                chosen = filedialog.askdirectory(
+                    title="Select Image Folder for Batch Background Removal",
+                    initialdir=initial_dir,
+                )
+                root.destroy()
+                if chosen:
+                    self._last_browse_dir = chosen
+                    self.app_page.run_task(self._async_load_folder, chosen)
+            except Exception as exc:
+                print(f"[-] Folder pick error: {exc}")
+            finally:
+                self._dialog_lock = False
 
-    def _handle_hold_toggle(self) -> None:
-        self.vm.toggle_hold_original()
+        import threading
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _handle_cutout_bg_change(self, bg: CutoutBackground) -> None:
+        self.vm.set_cutout_bg(bg)
 
     def _handle_process(self) -> None:
         self.vm.set_enhancement_mode(EnhancementMode.REMOVE_BG)
         self.app_page.run_task(self.vm.process_image)
 
     def _handle_save(self) -> None:
-        state = self.vm.state
-        if not state.output_path or not os.path.exists(state.output_path):
+        if getattr(self, "_dialog_lock", False):
             return
+        self._dialog_lock = True
 
-        async def _save():
-            try:
-                dest = await self.save_file_picker.save_file(
-                    dialog_title="Export Transparent Cutout",
-                    file_name=f"lumiere_cutout_{uuid.uuid4().hex[:6]}.png",
-                    allowed_extensions=["png"],
-                )
-                if dest:
-                    self.vm.export_image(dest)
-                    return
-            except Exception:
-                pass
+        state = self.vm.state
+        initial_dir = self._last_browse_dir if (self._last_browse_dir and os.path.exists(self._last_browse_dir)) else os.path.expanduser("~")
 
+        def _worker():
             try:
                 import tkinter as tk
                 from tkinter import filedialog
-                root = tk.Tk()
-                root.withdraw()
-                root.attributes("-topmost", True)
-                dest = filedialog.asksaveasfilename(
-                    title="Export Transparent Cutout",
-                    defaultextension=".png",
-                    filetypes=[("PNG Image", "*.png"), ("All files", "*.*")],
-                )
-                root.destroy()
-                if dest:
-                    self.vm.export_image(dest)
-            except Exception as inner:
-                print(f"[-] Save error: {inner}")
 
-        self.app_page.run_task(_save)
+                if state.is_batch:
+                    if not state.batch_output_dir or not os.path.exists(state.batch_output_dir):
+                        return
+                    root = tk.Tk()
+                    root.withdraw()
+                    root.attributes("-topmost", True)
+                    folder_name = state.batch_folder_name or "batch_output"
+                    dest_dir = filedialog.askdirectory(
+                        title=f"Select Destination to Download Folder '{folder_name}'",
+                        initialdir=initial_dir,
+                    )
+                    root.destroy()
+                    if dest_dir:
+                        self._last_browse_dir = dest_dir
+                        target_full_path = self.vm.export_folder(dest_dir)
+                        if target_full_path and os.path.exists(target_full_path):
+                            try:
+                                os.startfile(target_full_path)
+                            except Exception:
+                                pass
+                    else:
+                        try:
+                            os.startfile(state.batch_output_dir)
+                        except Exception:
+                            pass
+                else:
+                    if not state.output_path or not os.path.exists(state.output_path):
+                        return
+                    orig_name = os.path.basename(state.input_path) if state.input_path else "image"
+                    orig_stem, _ = os.path.splitext(orig_name)
+                    ext = os.path.splitext(state.output_path)[1].lstrip(".").lower() or "png"
+                    filetypes = [("PNG Image", "*.png"), ("All files", "*.*")] if ext == "png" else [("JPEG Image", "*.jpg;*.jpeg"), ("All files", "*.*")]
+
+                    # In BG Removal: use same filename as uploaded image
+                    base_name = f"{orig_stem}"
+
+                    # Prevent duplicate file name if file already exists in initial_dir
+                    candidate_file = f"{base_name}.{ext}"
+                    if os.path.exists(os.path.join(initial_dir, candidate_file)):
+                        counter = 1
+                        candidate_file = f"{base_name}_{counter}.{ext}"
+                        while os.path.exists(os.path.join(initial_dir, candidate_file)):
+                            counter += 1
+                            candidate_file = f"{base_name}_{counter}.{ext}"
+
+                    initial_file = candidate_file
+
+                    root = tk.Tk()
+                    root.withdraw()
+                    root.attributes("-topmost", True)
+                    root.update()
+                    dest = filedialog.asksaveasfilename(
+                        title="Download Processed Cutout",
+                        initialdir=initial_dir,
+                        initialfile=initial_file,
+                        defaultextension=f".{ext}",
+                        filetypes=filetypes,
+                    )
+                    root.destroy()
+                    if dest:
+                        self._last_browse_dir = os.path.dirname(dest)
+                        saved_path = self.vm.export_image(dest)
+                        if saved_path and os.path.exists(saved_path):
+                            try:
+                                os.startfile(saved_path)
+                            except Exception:
+                                pass
+            except Exception as exc:
+                print(f"[-] Save error: {exc}")
+            finally:
+                self._dialog_lock = False
+
+        import threading
+        threading.Thread(target=_worker, daemon=True).start()

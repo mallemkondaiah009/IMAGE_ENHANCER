@@ -31,9 +31,6 @@ def run_natural_enhancement(
     """
     orig_w, orig_h = img.size
 
-    # Save authentic original upload for the frontend comparison view
-    img.convert("RGB").save(input_path, format="PNG")
-
     # ── 1. Smart Studio Resolution Optimization ───────────────────────────────
     # If the image is large (> max_enhance_input_dim), downsample with Lanczos
     # so Real-ESRGAN operates in its trained sweet spot without tile overload.
@@ -47,6 +44,8 @@ def run_natural_enhancement(
         engine_in = img
 
     engine_input_path = input_path.replace(".png", "_ncnn_in.png")
+    os.makedirs(os.path.dirname(engine_input_path), exist_ok=True)
+    os.makedirs(os.path.dirname(final_output_path), exist_ok=True)
     engine_in.convert("RGB").save(engine_input_path, format="PNG")
 
     # ── 2. Select Model ───────────────────────────────────────────────────────
@@ -66,7 +65,8 @@ def run_natural_enhancement(
         "-m", settings.models_dir,
         "-n", target_model,
         "-g", "0",
-        "-t", "200",
+        "-t", "128",
+        "-j", "1:4:1",
     ]
     print(f"[+] Running Optimized Pure Natural AI Enhancement with {target_model}...")
     proc = subprocess.run(cmd, capture_output=True, text=True)
@@ -83,12 +83,12 @@ def run_natural_enhancement(
     # hue and saturation to eliminate color bleeding between stone & metal.
     polished = apply_color_locked_clarity(upscaled, radius=0.9, percent=50, threshold=4)
 
-    # ── 4. Enforce 2000x2000 Resolution & <= 500 KB File Size ─────────────────
+    # ── 4. Enforce 2000x2000 Resolution (Maximum Studio Quality, No 500 KB Limit) ──
     out_w, out_h, actual_bytes = save_optimized_image(
         polished,
         final_output_path,
         target_size=(settings.target_output_width, settings.target_output_height),
-        max_kb=settings.max_output_file_size_kb,
+        max_kb=None,
     )
     print(f"[+] Output ready: {out_w}x{out_h} px, {actual_bytes / 1024:.1f} KB (saved to {final_output_path})")
 

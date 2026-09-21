@@ -14,6 +14,12 @@ class EnhancementMode(str, Enum):
     COMBO = "combo"
 
 
+class CutoutBackground(str, Enum):
+    WHITE = "white"
+    BLACK = "black"
+    TRANSPARENT = "transparent"
+
+
 class ViewMode(str, Enum):
     SPLIT = "split"
     ENHANCED = "enhanced"
@@ -52,6 +58,8 @@ class StudioState:
     output_data_uri: Optional[str] = None
 
     active_mode: EnhancementMode = EnhancementMode.ENHANCE
+    cutout_bg: CutoutBackground = CutoutBackground.WHITE
+    cutout_alpha_image: Optional[Image.Image] = None
     view_mode: ViewMode = ViewMode.SPLIT
     status: ProcessingStatus = ProcessingStatus.IDLE
     status_message: str = "Ready — Load an image to begin."
@@ -61,3 +69,12 @@ class StudioState:
     current_screen: str = "home"
     metrics: ImageMetrics = field(default_factory=ImageMetrics)
     is_processing: bool = False
+
+    # Batch folder processing
+    batch_folder_path: Optional[str] = None
+    batch_folder_name: Optional[str] = None
+    batch_files: list[str] = field(default_factory=list)
+    batch_total: int = 0
+    batch_current_index: int = 0
+    is_batch: bool = False
+    batch_output_dir: Optional[str] = None

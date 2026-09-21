@@ -1,15 +1,13 @@
 """
 app/config.py
-Centralised desktop application settings — reads from .env via pydantic-settings.
+Centralised desktop application settings — fully self-contained with hardcoded defaults (no .env needed).
 """
 import os
 import sys
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Optional
 
 
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
-
+class Settings:
     # Resolution & Output Quality Rules
     # Caps input to 500px -> Real-ESRGAN 4x gives 2000px native super-resolution
     max_enhance_input_dim: int = 500
@@ -18,39 +16,65 @@ class Settings(BaseSettings):
     max_output_file_size_kb: int = 500
 
     # Application metadata
-    app_title: str = "LUMIÈRE Jewelry AI Studio"
+    app_title: str = "Image Studio"
     app_description: str = (
         "High-fidelity 4x AI Image Enhancement tailored for "
         "diamonds, gemstones, and precious metals."
     )
     app_version: str = "2.0.0"
-    brand_name: str = "LUMIÈRE"
-    brand_tagline: str = "Fine Jewelry AI Studio"
+    brand_name: str = "Image Studio"
+    brand_tagline: str = "AI Studio"
 
-    # Derived paths (computed as properties so they're always relative to project root)
+    # Derived paths (computed as properties so they work in development and packaged .exe builds)
+    @property
+    def app_dir(self) -> str:
+        """Directory where the executable or workspace root lives."""
+        if getattr(sys, "frozen", False):
+            return os.path.dirname(sys.executable)
+        return os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
     @property
     def base_dir(self) -> str:
+        """Directory where bundled internal resources live (handles PyInstaller _MEIPASS)."""
+        if getattr(sys, "frozen", False):
+            return getattr(sys, "_MEIPASS", os.path.dirname(sys.executable))
         return os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
     @property
     def engine_dir(self) -> str:
-        return os.path.join(self.base_dir, "engine")
+        path_in_base = os.path.join(self.base_dir, "engine")
+        if os.path.exists(path_in_base):
+            return path_in_base
+        return os.path.join(self.app_dir, "engine")
 
     @property
     def models_dir(self) -> str:
         return os.path.join(self.engine_dir, "models")
 
     @property
+    def temp_dir(self) -> str:
+        """System temporary directory for scratch image processing buffers (auto-cleaned)."""
+        import tempfile
+        p = os.path.join(tempfile.gettempdir(), "image_studio_scratch")
+        os.makedirs(p, exist_ok=True)
+        return p
+
+    @property
     def uploads_dir(self) -> str:
-        return os.path.join(self.base_dir, "uploads")
+        return self.temp_dir
 
     @property
     def outputs_dir(self) -> str:
-        return os.path.join(self.base_dir, "outputs")
+        p = os.path.join(self.app_dir, "outputs")
+        os.makedirs(p, exist_ok=True)
+        return p
 
     @property
     def assets_dir(self) -> str:
-        return os.path.join(self.base_dir, "assets")
+        path_in_base = os.path.join(self.base_dir, "assets")
+        if os.path.exists(path_in_base):
+            return path_in_base
+        return os.path.join(self.app_dir, "assets")
 
     @property
     def exe_path(self) -> str:
@@ -59,3 +83,4 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+

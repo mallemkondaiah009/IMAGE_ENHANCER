@@ -4,6 +4,19 @@ Application Bootstrap: All-in-One Luxury Studio Workspace
 =========================================================
 """
 import sys
+import ctypes
+
+# Enable Windows Per-Monitor High-DPI awareness to ensure razor-sharp rendering
+try:
+    ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
+except Exception:
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)
+    except Exception:
+        try:
+            ctypes.windll.user32.SetProcessDPIAware()
+        except Exception:
+            pass
 
 # Ensure UTF-8 console output on Windows
 if hasattr(sys.stdout, "reconfigure"):
@@ -18,7 +31,7 @@ from app.views import StudioView
 
 async def main(page: ft.Page):
     # ── 1. Window & Stage Setup ───────────────────────────────────────────────
-    page.title = f"{settings.brand_name} — {settings.brand_tagline}"
+    page.title = "Image Studio"
     page.theme_mode = ft.ThemeMode.DARK
     page.bgcolor = "#000000"
     page.theme = ft.Theme(font_family="Segoe UI")

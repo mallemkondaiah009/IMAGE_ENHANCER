@@ -18,7 +18,7 @@ class AnimatedButton(ft.Container):
         glow_color: str = "#2563EB55",
         text_color: str = "#FFFFFF",
         font_size: int = 12,
-        border_radius: int = 22,
+        border_radius: int = 4,
         padding: Optional[ft.Padding] = None,
         height: Optional[int] = 44,
         width: Optional[int] = None,
@@ -33,18 +33,13 @@ class AnimatedButton(ft.Container):
         self._text_str = text
         self._icon_name = icon
 
-        # Ambient & blooming glow drop shadows
-        self._normal_shadow = ft.BoxShadow(
-            spread_radius=0,
-            blur_radius=14,
-            color=self._glow_color,
-            offset=ft.Offset(0, 4),
-        )
+        # Sharp clean edges with subtle, non-blurry elevation
+        self._normal_shadow = None
         self._hover_shadow = ft.BoxShadow(
-            spread_radius=1.5,
-            blur_radius=24,
-            color=self._glow_color,
-            offset=ft.Offset(0, 6),
+            spread_radius=0,
+            blur_radius=4,
+            color="#00000060",
+            offset=ft.Offset(0, 2),
         )
 
         # Micro-animations
@@ -91,6 +86,10 @@ class AnimatedButton(ft.Container):
         self.on_click = self._handle_click
         self.disabled = disabled
 
+    @property
+    def text(self) -> str:
+        return self._text_str
+
     def __setattr__(self, name, value):
         super().__setattr__(name, value)
         if name == "disabled":
@@ -130,20 +129,15 @@ class AnimatedButton(ft.Container):
             self._hover_gradient_colors = hover_gradient_colors
         if glow_color:
             self._glow_color = glow_color
-            self._normal_shadow = ft.BoxShadow(
-                spread_radius=0,
-                blur_radius=14,
-                color=glow_color,
-                offset=ft.Offset(0, 4),
-            )
+            self._normal_shadow = None
             self._hover_shadow = ft.BoxShadow(
-                spread_radius=1.5,
-                blur_radius=24,
-                color=glow_color,
-                offset=ft.Offset(0, 6),
+                spread_radius=0,
+                blur_radius=4,
+                color="#00000060",
+                offset=ft.Offset(0, 2),
             )
             if not self.disabled:
-                self.shadow = self._normal_shadow
+                self.shadow = None
         try:
             if self.page:
                 self.update()
