@@ -9,6 +9,7 @@ from functools import lru_cache
 import numpy as np
 from PIL import Image, ImageFilter
 from rembg import new_session, remove as rembg_remove
+from app.config import settings
 
 _MODEL_PRIORITY = [
     "isnet-general-use",
@@ -17,12 +18,38 @@ _MODEL_PRIORITY = [
 ]
 
 
+def _ensure_model_home():
+    """Ensure U2NET_HOME points to permanent on-disk model storage."""
+    # 1. Local user ~/.u2net directory (permanent on-disk storage)
+    user_u2net = os.path.join(os.path.expanduser("~"), ".u2net")
+    if os.path.exists(os.path.join(user_u2net, "isnet-general-use.onnx")):
+        os.environ["U2NET_HOME"] = user_u2net
+        return
+
+    # 2. Local AppData permanent storage (%LOCALAPPDATA%/ImageStudio/models)
+    appdata_u2net = os.path.join(os.environ.get("LOCALAPPDATA", os.path.expanduser("~")), "ImageStudio", "models")
+    if os.path.exists(os.path.join(appdata_u2net, "isnet-general-use.onnx")):
+        os.environ["U2NET_HOME"] = appdata_u2net
+        return
+
+    # 3. Fallback: engine/models if bundled
+    if os.path.exists(os.path.join(settings.models_dir, "isnet-general-use.onnx")):
+        os.environ["U2NET_HOME"] = settings.models_dir
+        return
+
+    # Default to user ~/.u2net
+    os.makedirs(user_u2net, exist_ok=True)
+    os.environ["U2NET_HOME"] = user_u2net
+
+
 @lru_cache(maxsize=1)
 def get_rembg_session():
     """
     Initialise and cache the rembg inference session.
     Tries models in priority order; returns the first that loads successfully.
     """
+    _ensure_model_home()
+    errors = []
     for model_name in _MODEL_PRIORITY:
         try:
             print(f"[+] Initialising rembg session with model '{model_name}'...")
@@ -30,8 +57,10 @@ def get_rembg_session():
             print(f"[+] rembg ready: '{model_name}'")
             return session
         except Exception as exc:
-            print(f"[-] Could not load rembg model '{model_name}': {exc}")
-    raise RuntimeError("No rembg model could be loaded. Check your onnxruntime installation.")
+            err_msg = f"{model_name} ({type(exc).__name__}: {exc})"
+            print(f"[-] Could not load rembg model {err_msg}")
+            errors.append(err_msg)
+    raise RuntimeError(f"No rembg model could be loaded. Details: {'; '.join(errors)}")
 
 
 def refine_alpha_edges(mask: Image.Image) -> Image.Image:

@@ -18,9 +18,19 @@ except Exception:
         except Exception:
             pass
 
-# Ensure UTF-8 console output on Windows
-if hasattr(sys.stdout, "reconfigure"):
+# Ensure UTF-8 console output on Windows or dummy stream if windowed
+import os
+import io
+
+if sys.stdout is None:
+    sys.stdout = io.StringIO()
+elif hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
+
+if sys.stderr is None:
+    sys.stderr = io.StringIO()
+elif hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
 
 # Safeguard against PyInstaller missing package metadata (e.g. pymatting, rembg)
 import importlib.metadata
@@ -39,6 +49,18 @@ from app.config import settings
 from app.theme import StudioColors
 from app.viewmodels import StudioViewModel
 from app.views import StudioView
+
+# Configure permanent on-disk model directories for instant startup
+user_u2net = os.path.join(os.path.expanduser("~"), ".u2net")
+appdata_models = os.path.join(os.environ.get("LOCALAPPDATA", os.path.expanduser("~")), "ImageStudio", "models")
+if os.path.exists(os.path.join(user_u2net, "isnet-general-use.onnx")):
+    os.environ["U2NET_HOME"] = user_u2net
+elif os.path.exists(os.path.join(appdata_models, "isnet-general-use.onnx")):
+    os.environ["U2NET_HOME"] = appdata_models
+elif os.path.exists(os.path.join(settings.models_dir, "isnet-general-use.onnx")):
+    os.environ["U2NET_HOME"] = settings.models_dir
+else:
+    os.environ.setdefault("U2NET_HOME", user_u2net)
 
 
 async def main(page: ft.Page):

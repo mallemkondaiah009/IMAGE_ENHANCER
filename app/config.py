@@ -41,11 +41,34 @@ class Settings:
         return os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
     @property
+    def permanent_engine_dir(self) -> str:
+        """Permanent directory on disk for Real-ESRGAN engine and neural models."""
+        local_app = os.environ.get("LOCALAPPDATA", os.path.expanduser("~"))
+        p = os.path.join(local_app, "ImageStudio", "engine")
+        os.makedirs(p, exist_ok=True)
+        return p
+
+    @property
     def engine_dir(self) -> str:
-        path_in_base = os.path.join(self.base_dir, "engine")
-        if os.path.exists(path_in_base):
-            return path_in_base
-        return os.path.join(self.app_dir, "engine")
+        """
+        Permanent on-disk engine resolution (zero unpack latency):
+        1. Permanent storage in %LOCALAPPDATA%/ImageStudio/engine
+        2. Engine directory next to executable (app_dir/engine)
+        3. Internal bundled engine (base_dir/engine)
+        """
+        perm_dir = self.permanent_engine_dir
+        if os.path.exists(os.path.join(perm_dir, "realesrgan-ncnn-vulkan.exe")):
+            return perm_dir
+
+        app_engine = os.path.join(self.app_dir, "engine")
+        if os.path.exists(os.path.join(app_engine, "realesrgan-ncnn-vulkan.exe")):
+            return app_engine
+
+        base_engine = os.path.join(self.base_dir, "engine")
+        if os.path.exists(base_engine):
+            return base_engine
+
+        return perm_dir
 
     @property
     def models_dir(self) -> str:
