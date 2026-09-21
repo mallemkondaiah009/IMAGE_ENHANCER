@@ -22,6 +22,18 @@ except Exception:
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
+# Safeguard against PyInstaller missing package metadata (e.g. pymatting, rembg)
+import importlib.metadata
+_orig_metadata_version = importlib.metadata.version
+
+def _safe_metadata_version(pkg_name: str) -> str:
+    try:
+        return _orig_metadata_version(pkg_name)
+    except importlib.metadata.PackageNotFoundError:
+        return "1.1.12"
+
+importlib.metadata.version = _safe_metadata_version
+
 import flet as ft
 from app.config import settings
 from app.theme import StudioColors
