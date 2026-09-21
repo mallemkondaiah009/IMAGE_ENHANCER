@@ -69,7 +69,17 @@ def run_natural_enhancement(
         "-j", "1:4:1",
     ]
     print(f"[+] Running Optimized Pure Natural AI Enhancement with {target_model}...")
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    
+    # Suppress console / terminal window popup on Windows
+    subp_kwargs = {}
+    if os.name == "nt":
+        subp_kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo.wShowWindow = subprocess.SW_HIDE
+        subp_kwargs["startupinfo"] = startupinfo
+
+    proc = subprocess.run(cmd, capture_output=True, text=True, **subp_kwargs)
 
     if proc.returncode != 0:
         print(f"[-] NCNN Error: {proc.stderr}")
