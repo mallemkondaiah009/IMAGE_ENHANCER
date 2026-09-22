@@ -35,7 +35,7 @@ class EnhanceView(ft.Container):
 
         # ── 1. Top Navigation Bar ─────────────────────────────────────────────
         btn_back = ft.OutlinedButton(
-            "← Back to Dashboard",
+            "Back to Dashboard",
             icon=ft.Icons.ARROW_BACK,
             style=StudioStyles.ghost_button(),
             on_click=lambda e: self._on_back_click(),
